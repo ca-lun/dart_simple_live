@@ -123,54 +123,69 @@ jobs:
       #完成
       - run: echo "🍏 This job's status is ${{ job.status }}."
 
-  # 打包Linux
-  build-linux:
-    runs-on: ubuntu-22.04
+  # 打包 Arch Linux
+  build-arch:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
     permissions:
       contents: write
     steps:
+      # 安装基础工具（Actions 插件和 Flutter 依赖需要）
+      - name: Prepare basic tools
+        run: pacman -Syu --noconfirm git nodejs unzip base-devel
+
       # 签出代码
       - uses: actions/checkout@v4
         with:
           ref: dev
-      # 设置Flutter环境
+
+      # 安装 Arch 编译依赖
+      - name: Install Dependencies
+        run: pacman -S --noconfirm clang cmake ninja pkgconf gtk3 xz alsa-lib mpv
+
+      # 解决 git 容器内的安全目录报错
+      - name: Git safe directory
+        run: git config --global --add safe.directory '*'
+
+      # 设置 Flutter 环境
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.38.x"
           cache: true
-      # 安装依赖
-      - name: Update apt-get
-        run: sudo apt-get update
-      - name: Install Dependencies
-        run: sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libasound2-dev libmpv-dev mpv
-      # 打开Linux Desktop支持
+
+      # 打开 Linux Desktop 支持
       - name: Enable Flutter Desktop
         run: flutter config --enable-linux-desktop
-      # 更新Flutter的packages
+
+      # 更新 Flutter packages
       - name: Restore Packages
         run: |
           cd simple_live_app
           flutter pub get
-      # 设置flutter_distributor环境
+
+      # 设置 flutter_distributor 环境
       - name: Install flutter_distributor
         run: dart pub global activate flutter_distributor
-      # build Linux ZIP\DMG
-      - name: Build Linux
+
+      # build Arch Linux ZIP
+      - name: Build Arch
         run: |
           cd simple_live_app
-          flutter_distributor package --platform linux --targets deb,zip --skip-clean
-      # 上传Linux包至Artifacts
-      - name: Upload Linux APP to Artifacts
+          export PATH="$PATH":"$HOME/.pub-cache/bin"
+          flutter_distributor package --platform linux --targets zip --skip-clean
+
+      # 上传 Arch 包至 Artifacts
+      - name: Upload Arch APP to Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux
+          name: archlinux
           path: |
-            simple_live_app/build/dist/*/*.deb
             simple_live_app/build/dist/*/*.zip
 
-        #完成
-      - run: echo "🍏 Linux job's status is ${{ job.status }}."
+      # 完成
+      - run: echo "🍏 Arch Linux job's status is ${{ job.status }}."
 
   # 打包Windows
   build-windows:
